@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'My Navigation',
-  description: 'Simple Nav Page',
+  title: '爱和新标签页',
+  description: '极简浏览器起始页',
 };
 
 export default function RootLayout({ children }) {
