@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: '爱和新标签页',
+  title: 'CatTab',
   description: '极简浏览器起始页',
 };
 
