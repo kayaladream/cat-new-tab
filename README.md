@@ -1,4 +1,4 @@
-# CatTab - 新标签页 (CatTab New Tab)
+# CatTab-新标签页
 
 一个基于 **Next.js** + **Tailwind CSS** 构建的极简主义浏览器起始页。
 部署在免费且高速的 Cloudflare Pages 上，拥有沉浸式的视频背景、实时农历时钟、优雅的搜索引擎切换以及毛玻璃风格的快捷导航。
