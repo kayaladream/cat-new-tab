@@ -51,132 +51,95 @@ export default function Home() {
     // 2. 延迟加载视频
     const videoTimer = setTimeout(() => setStartLoadVideo(true), 800); 
 
-    // 3. 核心：升级版智能布局算法 (先填满后回退策略)
+    // 3. 核心：激进版智能布局算法 (Squeeze Layout)
     const calculateLayout = (allLinks) => {
       if (!allLinks || allLinks.length === 0) return;
 
       const screenWidth = window.innerWidth;
       const isDesktop = screenWidth > 1024;
+      // 容器左右留白: 电脑 760px, 手机 32px
       const containerPadding = isDesktop ? 760 : 32;
-      const availableWidth = screenWidth - containerPadding;
+      // 增加 5px 的容错宽度，防止极其微小的误差导致换行
+      const availableWidth = screenWidth - containerPadding + 5;
 
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
-      context.font = isDesktop ? '200 14px sans-serif' : '200 12px sans-serif';
+      // 使用更精准的系统字体栈进行测量
+      const fontStack = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+      context.font = isDesktop ? `200 14px ${fontStack}` : `200 12px ${fontStack}`;
 
-      const itemPadding = 24; // px-3
-      const itemGap = isDesktop ? 16 : 8; // sm:gap-4 / gap-2
-      const buttonWidth = 40; // w-10 (40px)
-      
-      // 第一步：模拟填充，将所有链接分配到行中
+      // 调整测量参数：
+      // 实际 padding 是 px-3 (12px*2=24px)。
+      // 这里我们在计算时用 22px，稍微"欺骗"一下算法，让它敢于多放一个
+      const itemPadding = 22; 
+      const itemGap = isDesktop ? 16 : 8; 
+      const buttonWidth = 40; // ... 按钮宽度
+
       let lines = [[]]; 
       let currentLineIndex = 0;
       let currentLineWidth = 0;
 
       for (let i = 0; i < allLinks.length; i++) {
         const link = allLinks[i];
-        // 测量宽度 + 字间距补偿
-        const textWidth = context.measureText(link.name).width + (link.name.length * 1.5);
-        const itemTotalWidth = textWidth + itemPadding;
+        // 移除额外的 length 补偿，进行精确测量
+        const textWidth = context.measureText(link.name).width;
+        // 稍微向上取整，但不多加 buffer
+        const itemTotalWidth = Math.ceil(textWidth + itemPadding);
 
-        // 计算加上当前元素后的宽度 (注意 gap)
         const widthToAdd = (lines[currentLineIndex].length === 0) ? itemTotalWidth : (itemGap + itemTotalWidth);
 
         if (currentLineWidth + widthToAdd <= availableWidth) {
-          // 当前行放得下
           lines[currentLineIndex].push({ ...link, _width: itemTotalWidth });
           currentLineWidth += widthToAdd;
         } else {
-          // 放不下，换新行
           currentLineIndex++;
           lines[currentLineIndex] = [];
-          // 重置当前行宽
           currentLineWidth = itemTotalWidth;
           lines[currentLineIndex].push({ ...link, _width: itemTotalWidth });
         }
       }
 
-      // 第二步：检查行数
-      if (lines.length <= 2) {
-        // 情况A: 完美，所有链接都在2行内
-        setVisibleLinks(allLinks);
-        setHiddenLinks([]);
-      } else {
-        // 情况B: 溢出到了第3行 (甚至更多)
-        // 此时我们要把所有第3行及以后的，以及第2行末尾挤占了按钮位置的，都移到 hiddenLinks
-
-        // 1. 先把第3行及以后的所有链接收集起来，这些肯定要隐藏
+      // 逻辑修正：只要超出了2行，就需要修剪第2行
+      if (lines.length > 2) {
+        // 1. 收集所有第3行及之后的链接（必须隐藏）
         let overflowLinks = [];
         for (let i = 2; i < lines.length; i++) {
           overflowLinks = overflowLinks.concat(lines[i]);
         }
 
-        // 2. 现在处理第2行 (lines[1])
-        // 我们需要在第2行末尾腾出空间放 "..." 按钮
-        let row2 = lines[1];
+        // 2. 修剪第2行
+        let row2 = lines[1] || [];
         let row2Width = 0;
-        
-        // 先计算第2行目前的总宽度
         row2.forEach((item, idx) => {
           row2Width += item._width + (idx > 0 ? itemGap : 0);
         });
 
-        // 循环回退：只要 (当前第2行宽 + gap + 按钮宽 > 可用宽度)，就拿掉最后一个
+        // 这里的逻辑：如果 (当前行宽 + 间距 + 按钮宽 > 可用宽度)，就必须拿掉一个
+        // 注意：我们加了条件 row2.length > 0，防止把第2行删光了按钮还放不下（虽然不太可能）
         while (row2.length > 0 && (row2Width + itemGap + buttonWidth > availableWidth)) {
           const removedItem = row2.pop();
-          // 减去它的宽度 (如果是该行最后一个元素，不需要减 gap，否则要减 gap)
           const widthToRemove = removedItem._width + (row2.length > 0 ? itemGap : 0);
           row2Width -= widthToRemove;
-          
-          // 把拿掉的放进隐藏列表的最前面
           overflowLinks.unshift(removedItem);
         }
 
-        // 3. 组装最终结果
-        const finalVisible = [...lines[0], ...row2];
-        
-        // 清理临时属性 _width 并设置状态
-        setVisibleLinks(finalVisible);
+        setVisibleLinks([...lines[0], ...row2]);
         setHiddenLinks(overflowLinks);
+      } else {
+        // 如果正好2行或更少，直接全部显示
+        setVisibleLinks(allLinks);
+        setHiddenLinks([]);
       }
     };
 
     const envLinks = process.env.NEXT_PUBLIC_NAV_LINKS;
-    let parsedLinks = [
-      { name: 'Amazon', url: 'https://www.amazon.com' },
-      { name: 'Apple', url: 'https://www.apple.com' },
-      { name: 'Cloudflare', url: 'https://www.cloudflare.com' },
-      { name: 'Facebook', url: 'https://www.facebook.com' },
-      { name: 'GitHub', url: 'https://www.github.com' },
-      { name: 'Google', url: 'https://www.google.com' },
-      { name: 'Linux DO', url: 'https://linux.do' },
-      { name: 'Microsoft', url: 'https://www.microsoft.com' },
-      { name: 'Netflix', url: 'https://www.netflix.com' },
-      { name: 'Twitter', url: 'https://www.twitter.com' },
-      { name: 'Wikipedia', url: 'https://www.wikipedia.org' },
-      { name: 'YouTube', url: 'https://www.youtube.com' },
-      { name: '爱奇艺', url: 'https://www.iqiyi.com' },
-      { name: '哔哩哔哩', url: 'https://www.bilibili.com' },
-      { name: '京东', url: 'https://www.jd.com' },
-      { name: '国家税务局', url: 'https://www.chinatax.gov.cn' },
-      { name: '工商银行', url: 'https://www.icbc.com.cn' },
-      { name: '建设银行', url: 'https://www.ccb.com' },
-      { name: '交通银行', url: 'https://www.bankcomm.com' },
-      { name: '农业银行', url: 'https://www.abchina.com' },
-      { name: '搜狐', url: 'https://www.sohu.com' },
-      { name: '淘宝', url: 'https://www.taobao.com' },
-      { name: '腾讯', url: 'https://www.tencent.com' },
-      { name: '网易', url: 'https://www.163.com' },
-      { name: '微博', url: 'https://www.weibo.com' },
-      { name: '微信公众平台', url: 'https://mp.weixin.qq.com' },
-      { name: '新浪', url: 'https://www.sina.com.cn' },
-      { name: '知乎', url: 'https://www.zhihu.com' },
-];
+    let parsedLinks = [{ name: '演示-淘宝', url: 'https://www.taobao.com' }];
     if (envLinks) {
       try { parsedLinks = JSON.parse(envLinks); } catch (e) { console.error(e); }
     }
     setLinks(parsedLinks);
     
+    // 延迟执行确保字体加载
     setTimeout(() => calculateLayout(parsedLinks), 100);
     const onResize = () => calculateLayout(parsedLinks);
     window.addEventListener('resize', onResize);
