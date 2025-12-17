@@ -52,14 +52,22 @@ export default function Home() {
     const videoTimer = setTimeout(() => setStartLoadVideo(true), 800); 
 
     // 3. 核心：动态计算链接数量
+    // 逻辑：总宽度 - 强制留白宽度 = 可用宽度。用可用宽度除以单个链接宽度。
     const calculateLayout = (allLinks) => {
       const width = window.innerWidth;
-      // 电脑端左右各留白约380px，手机端左右各20px
-      const marginTotal = width > 1024 ? 760 : 40; 
+      
+      // 留白计算：
+      // 大屏幕(>1024px)：左右各 380px (约10cm) -> 总扣除 760px
+      // 小屏幕：左右各 16px -> 总扣除 32px
+      const marginTotal = width > 1024 ? 760 : 32; 
+      
       const availableWidth = width - marginTotal;
-      const itemWidth = 110; 
+      const itemWidth = 110; // 单个链接预估宽度
+      
       const perRow = Math.floor(availableWidth / itemWidth);
-      let limit = Math.max(6, (perRow * 2) - 1);
+      
+      // 限制逻辑：最多2行，保留一个位置给...按钮
+      let limit = Math.max(4, (perRow * 2) - 1);
 
       if (allLinks.length > limit) {
         setVisibleLinks(allLinks.slice(0, limit));
@@ -70,7 +78,6 @@ export default function Home() {
       }
     };
 
-    // 读取链接
     const envLinks = process.env.NEXT_PUBLIC_NAV_LINKS;
     let parsedLinks = [{ name: '演示-淘宝', url: 'https://www.taobao.com' }];
     if (envLinks) {
@@ -147,10 +154,10 @@ export default function Home() {
       
       {/* 自定义滚动条样式 */}
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.2); border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.1); }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.4); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.3); border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.5); }
       `}</style>
 
       {/* 静态图 & 视频 */}
@@ -200,17 +207,16 @@ export default function Home() {
         </form>
       </div>
 
-      {/* 底部导航区域 */}
+      {/* 
+        底部导航区域 
+        1. lg:px-[380px]: 强制在大于 1024px 的屏幕上左右留白 380px (约10cm)，解决排满格问题。
+        2. px-4: 手机端留白 16px。
+        3. 容器本身宽度 w-full。
+      */}
       <div className="absolute bottom-[40px] w-full z-30 flex justify-center">
         <div className="absolute -bottom-10 left-0 w-full h-80 bg-gradient-to-t from-blue-300/20 to-transparent pointer-events-none" />
         
-        <div 
-          className="relative flex flex-wrap justify-center content-start gap-2 sm:gap-4 h-28 overflow-visible"
-          style={{ 
-            width: '100%',
-            maxWidth: typeof window !== 'undefined' && window.innerWidth > 1024 ? 'calc(100% - 760px)' : '95%' 
-          }}
-        >
+        <div className="relative flex flex-wrap justify-center content-start gap-2 sm:gap-4 h-28 overflow-visible w-full px-4 lg:px-[380px]">
           {visibleLinks.map((link, index) => (
             <a key={index} href={link.url} className="text-sm sm:text-base font-medium text-white/90 tracking-wider px-3 py-2 rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm h-fit">
               {link.name}
@@ -222,11 +228,16 @@ export default function Home() {
             <div className="relative h-fit" ref={moreMenuRef}>
               <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className="text-sm sm:text-base font-bold text-white/90 tracking-wider w-10 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm">•••</button>
 
-              {/* 透明毛玻璃菜单 - 已修复换行符问题 */}
+              {/* 
+                 下拉菜单重构：
+                 1. 去掉了 container 的背景色 (bg-black/40)，改为透明。
+                 2. 上移位置：bottom-14 (比之前更高，防止遮挡文字)。
+                 3. 内部链接：bg-black/20 + border-white/10 (半透明胶囊风格)。
+              */}
               {isMoreMenuOpen && (
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-40 bg-black/40 backdrop-blur-md border border-white/20 rounded-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto custom-scrollbar">
+                <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-40 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto custom-scrollbar">
                    {hiddenLinks.map((link, idx) => (
-                     <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-sm text-center text-white/90 font-medium rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white mb-1 last:mb-0">
+                     <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-sm text-center text-white/90 font-medium rounded-full transition-all duration-200 bg-black/20 border border-white/10 hover:bg-white/20 hover:text-white">
                        {link.name}
                      </a>
                    ))}
