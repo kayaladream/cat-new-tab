@@ -51,13 +51,17 @@ export default function Home() {
     // 2. 延迟加载视频
     const videoTimer = setTimeout(() => setStartLoadVideo(true), 800); 
 
-    // 3. 布局计算
+    // 3. 布局计算 (核心修改区)
     const calculateLayout = (allLinks) => {
       const width = window.innerWidth;
       const marginTotal = width > 1024 ? 760 : 32; 
       const availableWidth = width - marginTotal;
-      // 字号变小了，单个链接占用的宽度也会稍微变小，这里从 110 改为 100，让它能排下更多
-      const itemWidth = 100; 
+      
+      // ↓↓↓ 修改这里 ↓↓↓
+      // 之前是 100，改成了 130。
+      // 意思是：预留更宽的空间给长名字（如英文名），宁可多收纳进菜单，也不要挤出第3行。
+      const itemWidth = 130; 
+      
       const perRow = Math.floor(availableWidth / itemWidth);
       let limit = Math.max(4, (perRow * 2) - 1);
 
@@ -237,13 +241,8 @@ export default function Home() {
         <div className="absolute -bottom-10 left-0 w-full h-80 bg-gradient-to-t from-blue-300/20 to-transparent pointer-events-none" />
         
         <div className="relative flex flex-wrap justify-center content-start gap-2 sm:gap-4 h-28 overflow-visible w-full px-4 lg:px-[380px]">
-          {/* 
-             修改点：visibleLinks.map
-             1. text-xs sm:text-sm: 手机12px，电脑14px (比之前小了一号)。
-             2. font-thin: 标准字重 (比之前的 medium 500 细了一档)。
-          */}
           {visibleLinks.map((link, index) => (
-            <a key={index} href={link.url} className="text-xs sm:text-sm font-normal text-white/90 tracking-wider px-3 py-2 rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm h-fit">
+            <a key={index} href={link.url} className="text-xs sm:text-sm font-extralight text-white/90 tracking-wider px-3 py-2 rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm h-fit">
               {link.name}
             </a>
           ))}
@@ -253,11 +252,6 @@ export default function Home() {
             <div className="relative h-fit" ref={moreMenuRef}>
               <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className="text-sm sm:text-base font-bold text-white/90 tracking-wider w-10 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm">•••</button>
 
-              {/* 
-                 下拉菜单链接也同步修改：
-                 text-xs sm:text-sm (变小)
-                 font-thin (变细)
-              */}
               {isMoreMenuOpen && (
                 <div 
                   className="absolute bottom-28 left-1/2 -translate-x-1/2 w-56 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-80 overflow-y-auto custom-scrollbar"
@@ -268,7 +262,7 @@ export default function Home() {
                 >
                    <div className="flex flex-col gap-1 py-4">
                      {hiddenLinks.map((link, idx) => (
-                       <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-xs sm:text-sm text-center text-white/90 font-normal rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white">
+                       <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-xs sm:text-sm text-center text-white/90 font-extralight rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white">
                          {link.name}
                        </a>
                      ))}
