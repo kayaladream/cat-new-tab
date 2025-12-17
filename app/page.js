@@ -24,8 +24,11 @@ export default function Home() {
   const [visibleLinks, setVisibleLinks] = useState([]); 
   const [hiddenLinks, setHiddenLinks] = useState([]);   
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false); 
+  const [isLayoutCalculated, setIsLayoutCalculated] = useState(false); // 防闪烁状态
+  
   const moreMenuRef = useRef(null); 
   const searchContainerRef = useRef(null);
+  const linksContainerRef = useRef(null); // Ref for measuring links
 
   // --- 初始化逻辑 ---
   useEffect(() => {
@@ -51,27 +54,52 @@ export default function Home() {
     // 2. 延迟加载视频
     const videoTimer = setTimeout(() => setStartLoadVideo(true), 800); 
 
-    // 3. 布局计算 (核心修改区)
+    // 3. 核心：Render-then-Measure 布局计算
     const calculateLayout = (allLinks) => {
-      const width = window.innerWidth;
-      const marginTotal = width > 1024 ? 760 : 32; 
-      const availableWidth = width - marginTotal;
-      
-      // ↓↓↓ 修改这里 ↓↓↓
-      // 之前是 100，改成了 130。
-      // 意思是：预留更宽的空间给长名字（如英文名），宁可多收纳进菜单，也不要挤出第3行。
-      const itemWidth = 130; 
-      
-      const perRow = Math.floor(availableWidth / itemWidth);
-      let limit = Math.max(4, (perRow * 2) - 1);
+      // 延迟一帧执行，确保 DOM 已渲染
+      requestAnimationFrame(() => {
+        const container = linksContainerRef.current;
+        if (!container) return;
 
-      if (allLinks.length > limit) {
-        setVisibleLinks(allLinks.slice(0, limit));
-        setHiddenLinks(allLinks.slice(limit));
-      } else {
-        setVisibleLinks(allLinks);
-        setHiddenLinks([]);
-      }
+        const children = Array.from(container.children);
+        if (children.length < 2) {
+          setVisibleLinks(allLinks);
+          setHiddenLinks([]);
+          setIsLayoutCalculated(true);
+          return;
+        }
+
+        const firstTop = children[0].offsetTop;
+        let secondTop = -1;
+        let cutOffIndex = allLinks.length;
+
+        for (let i = 1; i < children.length; i++) {
+          const childTop = children[i].offsetTop;
+
+          // 找到第二行的起始位置
+          if (secondTop === -1 && childTop > firstTop) {
+            secondTop = childTop;
+          }
+
+          // 找到第三行的起始位置 (这就是我们要切断的地方)
+          if (secondTop !== -1 && childTop > secondTop) {
+            cutOffIndex = i;
+            break;
+          }
+        }
+        
+        // 如果有需要隐藏的链接，最后一个可见位置让给 ... 按钮
+        if (cutOffIndex < allLinks.length) {
+            setVisibleLinks(allLinks.slice(0, cutOffIndex - 1));
+            setHiddenLinks(allLinks.slice(cutOffIndex - 1));
+        } else {
+            setVisibleLinks(allLinks);
+            setHiddenLinks([]);
+        }
+
+        // 计算完成，让容器显示出来
+        setIsLayoutCalculated(true);
+      });
     };
 
     const envLinks = process.env.NEXT_PUBLIC_NAV_LINKS;
@@ -108,10 +136,13 @@ export default function Home() {
     if (envLinks) {
       try { parsedLinks = JSON.parse(envLinks); } catch (e) { console.error(e); }
     }
-    setLinks(parsedLinks);
-    calculateLayout(parsedLinks);
+    setLinks(parsedLinks); // 先保存完整列表
+    calculateLayout(parsedLinks); // 首次计算
 
-    const onResize = () => calculateLayout(parsedLinks);
+    const onResize = () => {
+      setIsLayoutCalculated(false); // 重置状态以便重新计算
+      calculateLayout(parsedLinks);
+    };
     window.addEventListener('resize', onResize);
 
     // 4. 搜索引擎
@@ -240,7 +271,19 @@ export default function Home() {
       <div className="absolute bottom-[40px] w-full z-30 flex justify-center">
         <div className="absolute -bottom-10 left-0 w-full h-80 bg-gradient-to-t from-blue-300/20 to-transparent pointer-events-none" />
         
-        <div className="relative flex flex-wrap justify-center content-start gap-2 sm:gap-4 h-28 overflow-visible w-full px-4 lg:px-[380px]">
+        <div 
+          className={`relative flex flex-wrap justify-center content-start gap-2 sm:gap-4 h-28 overflow-hidden w-full px-4 lg:px-[380px] transition-opacity duration-300 ${isLayoutCalculated ? 'opacity-100' : 'opacity-0'}`} 
+          ref={linksContainerRef}
+        >
+          {/*
+            Render-then-Measure 模式:
+            - 初始渲染: 渲染 `links` (完整列表)
+            - useEffect: 测量后，更新 `visibleLinks` 和 `hiddenLinks`
+            - 最终渲染: 渲染 `visibleLinks`
+            
+            为了简化逻辑和避免闪烁，我们始终渲染 'links'，然后用 JS 决定 '...' 是否出现
+            下面的逻辑已简化为只显示 visibleLinks 和 hiddenLinks
+          */}
           {visibleLinks.map((link, index) => (
             <a key={index} href={link.url} className="text-xs sm:text-sm font-extralight text-white/90 tracking-wider px-3 py-2 rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm h-fit">
               {link.name}
