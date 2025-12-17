@@ -51,7 +51,7 @@ export default function Home() {
     // 2. 延迟加载视频
     const videoTimer = setTimeout(() => setStartLoadVideo(true), 800); 
 
-    // 3. 核心：智能布局算法 (修复按钮溢出问题)
+    // 3. 核心：升级版智能布局算法 (先填满后回退策略)
     const calculateLayout = (allLinks) => {
       if (!allLinks || allLinks.length === 0) return;
 
@@ -60,63 +60,85 @@ export default function Home() {
       const containerPadding = isDesktop ? 760 : 32;
       const availableWidth = screenWidth - containerPadding;
 
-      // 准备测量工具
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
-      // 匹配字体: extralight (200), desktop 14px, mobile 12px
       context.font = isDesktop ? '200 14px sans-serif' : '200 12px sans-serif';
 
-      const itemPadding = 24; // px-3 => 12+12
+      const itemPadding = 24; // px-3
       const itemGap = isDesktop ? 16 : 8; // sm:gap-4 / gap-2
-      const moreButtonWidth = 60; // "..." 按钮预留宽度 (含 gap)
-
-      let currentRow = 1;
+      const buttonWidth = 40; // w-10 (40px)
+      
+      // 第一步：模拟填充，将所有链接分配到行中
+      let lines = [[]]; 
+      let currentLineIndex = 0;
       let currentLineWidth = 0;
-      let visibleCount = 0;
 
-      // 第一次遍历：尝试尽可能多放
       for (let i = 0; i < allLinks.length; i++) {
         const link = allLinks[i];
-        
-        // 测量宽度 + 补偿 (tracking-wider 导致每个字大约宽 1-2px)
-        const textWidth = context.measureText(link.name).width + (link.name.length * 2); 
-        const linkTotalWidth = textWidth + itemPadding;
+        // 测量宽度 + 字间距补偿
+        const textWidth = context.measureText(link.name).width + (link.name.length * 1.5);
+        const itemTotalWidth = textWidth + itemPadding;
 
-        // 计算增加该链接后的宽度
-        const gap = (currentLineWidth === 0) ? 0 : itemGap;
-        const widthToAdd = gap + linkTotalWidth;
+        // 计算加上当前元素后的宽度 (注意 gap)
+        const widthToAdd = (lines[currentLineIndex].length === 0) ? itemTotalWidth : (itemGap + itemTotalWidth);
 
-        // 关键判断：
-        // 如果我们正在第2行，我们必须检查是否会侵占 "..." 按钮的空间
-        // 假设当前不是最后一个链接，那么我们可能需要放按钮，所以要预留 moreButtonWidth
-        const isLastItem = (i === allLinks.length - 1);
-        const reserveForButton = isLastItem ? 0 : moreButtonWidth;
-
-        if (currentLineWidth + widthToAdd + (currentRow === 2 ? reserveForButton : 0) <= availableWidth) {
-          // 能放下
+        if (currentLineWidth + widthToAdd <= availableWidth) {
+          // 当前行放得下
+          lines[currentLineIndex].push({ ...link, _width: itemTotalWidth });
           currentLineWidth += widthToAdd;
-          visibleCount++;
         } else {
-          // 放不下，换行
-          currentRow++;
-          currentLineWidth = linkTotalWidth; // 新行初始宽度
-          
-          // 如果换行后变成了第3行 -> 立即停止，且不要算入当前这个链接
-          if (currentRow > 2) {
-            break; 
-          }
-          
-          // 如果刚换到第2行，也要检查第2行第一个元素 + 按钮会不会溢出 (极罕见情况)
-          if (currentRow === 2 && currentLineWidth + reserveForButton > availableWidth) {
-            break;
-          }
-
-          visibleCount++;
+          // 放不下，换新行
+          currentLineIndex++;
+          lines[currentLineIndex] = [];
+          // 重置当前行宽
+          currentLineWidth = itemTotalWidth;
+          lines[currentLineIndex].push({ ...link, _width: itemTotalWidth });
         }
       }
 
-      setVisibleLinks(allLinks.slice(0, visibleCount));
-      setHiddenLinks(allLinks.slice(visibleCount));
+      // 第二步：检查行数
+      if (lines.length <= 2) {
+        // 情况A: 完美，所有链接都在2行内
+        setVisibleLinks(allLinks);
+        setHiddenLinks([]);
+      } else {
+        // 情况B: 溢出到了第3行 (甚至更多)
+        // 此时我们要把所有第3行及以后的，以及第2行末尾挤占了按钮位置的，都移到 hiddenLinks
+
+        // 1. 先把第3行及以后的所有链接收集起来，这些肯定要隐藏
+        let overflowLinks = [];
+        for (let i = 2; i < lines.length; i++) {
+          overflowLinks = overflowLinks.concat(lines[i]);
+        }
+
+        // 2. 现在处理第2行 (lines[1])
+        // 我们需要在第2行末尾腾出空间放 "..." 按钮
+        let row2 = lines[1];
+        let row2Width = 0;
+        
+        // 先计算第2行目前的总宽度
+        row2.forEach((item, idx) => {
+          row2Width += item._width + (idx > 0 ? itemGap : 0);
+        });
+
+        // 循环回退：只要 (当前第2行宽 + gap + 按钮宽 > 可用宽度)，就拿掉最后一个
+        while (row2.length > 0 && (row2Width + itemGap + buttonWidth > availableWidth)) {
+          const removedItem = row2.pop();
+          // 减去它的宽度 (如果是该行最后一个元素，不需要减 gap，否则要减 gap)
+          const widthToRemove = removedItem._width + (row2.length > 0 ? itemGap : 0);
+          row2Width -= widthToRemove;
+          
+          // 把拿掉的放进隐藏列表的最前面
+          overflowLinks.unshift(removedItem);
+        }
+
+        // 3. 组装最终结果
+        const finalVisible = [...lines[0], ...row2];
+        
+        // 清理临时属性 _width 并设置状态
+        setVisibleLinks(finalVisible);
+        setHiddenLinks(overflowLinks);
+      }
     };
 
     const envLinks = process.env.NEXT_PUBLIC_NAV_LINKS;
@@ -155,9 +177,7 @@ export default function Home() {
     }
     setLinks(parsedLinks);
     
-    // 延时执行以确保字体加载
     setTimeout(() => calculateLayout(parsedLinks), 100);
-
     const onResize = () => calculateLayout(parsedLinks);
     window.addEventListener('resize', onResize);
 
