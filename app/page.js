@@ -219,18 +219,30 @@ export default function Home() {
               <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className="text-sm sm:text-base font-bold text-white/90 tracking-wider w-10 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm">•••</button>
 
               {/* 
-                 下拉菜单优化版：
-                 1. snap-y snap-mandatory: 开启滚动捕捉，停止时自动吸附到完整一行，防止半截字。
-                 2. py-2: 上下增加内边距，让边缘有呼吸空间，不切字。
-                 3. bottom-28: 再次上移 (比之前的 24 更高)，彻底防止重叠。
+                 下拉菜单优化（最终版）：
+                 1. 移除了 'snap-y' 等相关代码（解决卡顿/跳动感）。
+                 2. 添加了 style={{ maskImage: ... }}。
+                    - 这是一个 CSS 遮罩。
+                    - 顶部 15px 和底部 15px 是透明渐变的。
+                    - 这样文字滑到边缘时会“柔和消失”，而不是被“一刀切”。
+                 3. 保持了 bottom-28 (防重叠) 和其他透明风格。
               */}
               {isMoreMenuOpen && (
-                <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-56 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-80 overflow-y-auto custom-scrollbar snap-y snap-mandatory py-2">
-                   {hiddenLinks.map((link, idx) => (
-                     <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="snap-start block px-4 py-2 text-sm text-center text-white/90 font-medium rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white">
-                       {link.name}
-                     </a>
-                   ))}
+                <div 
+                  className="absolute bottom-28 left-1/2 -translate-x-1/2 w-56 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-80 overflow-y-auto custom-scrollbar"
+                  style={{
+                    maskImage: 'linear-gradient(to bottom, transparent, black 15px, black calc(100% - 15px), transparent)',
+                    WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15px, black calc(100% - 15px), transparent)'
+                  }}
+                >
+                   {/* 加一层 padding-y (py-4) 确保第一项和最后一项能滚到遮罩的安全区内 */}
+                   <div className="flex flex-col gap-1 py-4">
+                     {hiddenLinks.map((link, idx) => (
+                       <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-sm text-center text-white/90 font-medium rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white">
+                         {link.name}
+                       </a>
+                     ))}
+                   </div>
                 </div>
               )}
             </div>
