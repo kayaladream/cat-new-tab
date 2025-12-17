@@ -56,7 +56,8 @@ export default function Home() {
       const width = window.innerWidth;
       const marginTotal = width > 1024 ? 760 : 32; 
       const availableWidth = width - marginTotal;
-      const itemWidth = 110; 
+      // 字号变小了，单个链接占用的宽度也会稍微变小，这里从 110 改为 100，让它能排下更多
+      const itemWidth = 100; 
       const perRow = Math.floor(availableWidth / itemWidth);
       let limit = Math.max(4, (perRow * 2) - 1);
 
@@ -207,8 +208,13 @@ export default function Home() {
         <div className="absolute -bottom-10 left-0 w-full h-80 bg-gradient-to-t from-blue-300/20 to-transparent pointer-events-none" />
         
         <div className="relative flex flex-wrap justify-center content-start gap-2 sm:gap-4 h-28 overflow-visible w-full px-4 lg:px-[380px]">
+          {/* 
+             修改点：visibleLinks.map
+             1. text-xs sm:text-sm: 手机12px，电脑14px (比之前小了一号)。
+             2. font-normal: 标准字重 (比之前的 medium 500 细了一档)。
+          */}
           {visibleLinks.map((link, index) => (
-            <a key={index} href={link.url} className="text-sm sm:text-base font-medium text-white/90 tracking-wider px-3 py-2 rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm h-fit">
+            <a key={index} href={link.url} className="text-xs sm:text-sm font-normal text-white/90 tracking-wider px-3 py-2 rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm h-fit">
               {link.name}
             </a>
           ))}
@@ -219,13 +225,9 @@ export default function Home() {
               <button onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)} className="text-sm sm:text-base font-bold text-white/90 tracking-wider w-10 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white hover:backdrop-blur-sm">•••</button>
 
               {/* 
-                 下拉菜单优化（最终版）：
-                 1. 移除了 'snap-y' 等相关代码（解决卡顿/跳动感）。
-                 2. 添加了 style={{ maskImage: ... }}。
-                    - 这是一个 CSS 遮罩。
-                    - 顶部 15px 和底部 15px 是透明渐变的。
-                    - 这样文字滑到边缘时会“柔和消失”，而不是被“一刀切”。
-                 3. 保持了 bottom-28 (防重叠) 和其他透明风格。
+                 下拉菜单链接也同步修改：
+                 text-xs sm:text-sm (变小)
+                 font-normal (变细)
               */}
               {isMoreMenuOpen && (
                 <div 
@@ -235,10 +237,9 @@ export default function Home() {
                     WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15px, black calc(100% - 15px), transparent)'
                   }}
                 >
-                   {/* 加一层 padding-y (py-4) 确保第一项和最后一项能滚到遮罩的安全区内 */}
                    <div className="flex flex-col gap-1 py-4">
                      {hiddenLinks.map((link, idx) => (
-                       <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-sm text-center text-white/90 font-medium rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white">
+                       <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-xs sm:text-sm text-center text-white/90 font-normal rounded-full transition-all duration-200 hover:bg-white/20 hover:text-white">
                          {link.name}
                        </a>
                      ))}
