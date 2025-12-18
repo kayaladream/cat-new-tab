@@ -278,7 +278,7 @@ export default function Home() {
 
               {isMoreMenuOpen && (
                 <div 
-                  className="absolute bottom-28 left-1/2 -translate-x-1/2 w-56 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-80 overflow-y-auto custom-scrollbar"
+                  className="absolute bottom-24 left-1/2 -translate-x-1/2 w-56 flex flex-col gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 max-h-80 overflow-y-auto custom-scrollbar"
                   style={{
                     maskImage: 'linear-gradient(to bottom, transparent, black 15px, black calc(100% - 15px), transparent)',
                     WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15px, black calc(100% - 15px), transparent)'
